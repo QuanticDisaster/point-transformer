@@ -6,12 +6,13 @@ if [[ $ENVS = *"$1"* ]]; then
     echo "[PT INFO] \"$1\" already exists. Pass the installation"
 else 
     echo "[PT INFO] Creating $1..."
-    conda create -n $1 python=3.7 -y
+    #conda create -n $1 python=3.7 -y
     conda activate "$1"
     echo "[PT INFO] Done !"
 
     echo "[PT INFO] Dependecies..."
     conda install pytorch=1.9.0 torchvision cudatoolkit=11.1 -c pytorch -c nvidia -y
+    #conda install pytorch=1.9.0 torchvision cudatoolkit=10.1 -c pytorch -c nvidia -y
     conda install -c anaconda h5py pyyaml -y
     conda install -c conda-forge sharedarray tensorboardx -y
     echo "[PT INFO] Done !"

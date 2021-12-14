@@ -24,6 +24,9 @@ from util.data_util import collate_fn
 from util import transform as t
 
 
+import sys
+sys.path.append('/home/tidop/anaconda3/envs/pt/lib/python3.7/site-packages/pointops-0.0.0-py3.7-linux-x86_64.egg')
+
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch Point Cloud Semantic Segmentation')
     parser.add_argument('--config', type=str, default='config/s3dis/s3dis_pointtransformer_repro.yaml', help='config file')
@@ -119,7 +122,7 @@ def main_worker(gpu, ngpus_per_node, argss):
         logger.info(args)
         logger.info("=> creating model ...")
         logger.info("Classes: {}".format(args.classes))
-        logger.info(model)
+        #logger.info(model)
     if args.distributed:
         torch.cuda.set_device(gpu)
         args.batch_size = int(args.batch_size / ngpus_per_node)
@@ -163,7 +166,7 @@ def main_worker(gpu, ngpus_per_node, argss):
                 logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     train_transform = t.Compose([t.RandomScale([0.9, 1.1]), t.ChromaticAutoContrast(), t.ChromaticTranslation(), t.ChromaticJitter(), t.HueSaturationTranslation()])
-    train_data = S3DIS(split='train', data_root=args.data_root, test_area=args.test_area, voxel_size=args.voxel_size, voxel_max=args.voxel_max, transform=train_transform, shuffle_index=True, loop=args.loop)
+    train_data = S3DIS(split='train', data_root=args.data_root, test_area=args.test_area, voxel_size=args.voxel_size, voxel_max=args.voxel_max, transform=train_transform, shuffle_index=True, loop=args.loop) #TODO : put back shuffle to True
     if main_process():
             logger.info("train_data samples: '{}'".format(len(train_data)))
     if args.distributed:
@@ -182,46 +185,57 @@ def main_worker(gpu, ngpus_per_node, argss):
             val_sampler = None
         val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size_val, shuffle=False, num_workers=args.workers, pin_memory=True, sampler=val_sampler, collate_fn=collate_fn)
 
-    for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
-        loss_train, mIoU_train, mAcc_train, allAcc_train = train(train_loader, model, criterion, optimizer, epoch)
-        scheduler.step()
-        epoch_log = epoch + 1
-        if main_process():
-            writer.add_scalar('loss_train', loss_train, epoch_log)
-            writer.add_scalar('mIoU_train', mIoU_train, epoch_log)
-            writer.add_scalar('mAcc_train', mAcc_train, epoch_log)
-            writer.add_scalar('allAcc_train', allAcc_train, epoch_log)
-
-        is_best = False
-        if args.evaluate and (epoch_log % args.eval_freq == 0):
-            if args.data_name == 'shapenet':
-                raise NotImplementedError()
-            else:
-                loss_val, mIoU_val, mAcc_val, allAcc_val = validate(val_loader, model, criterion)
-
+    try:
+        for epoch in range(args.start_epoch, args.epochs):
+            if args.distributed:
+                train_sampler.set_epoch(epoch)
+            loss_train, mIoU_train, mAcc_train, allAcc_train = train(train_loader, model, criterion, optimizer, epoch)
+            scheduler.step()
+            epoch_log = epoch + 1
             if main_process():
-                writer.add_scalar('loss_val', loss_val, epoch_log)
-                writer.add_scalar('mIoU_val', mIoU_val, epoch_log)
-                writer.add_scalar('mAcc_val', mAcc_val, epoch_log)
-                writer.add_scalar('allAcc_val', allAcc_val, epoch_log)
-                is_best = mIoU_val > best_iou
-                best_iou = max(best_iou, mIoU_val)
-
-        if (epoch_log % args.save_freq == 0) and main_process():
-            filename = args.save_path + '/model/model_last.pth'
-            logger.info('Saving checkpoint to: ' + filename)
-            torch.save({'epoch': epoch_log, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict(),
-                        'scheduler': scheduler.state_dict(), 'best_iou': best_iou, 'is_best': is_best}, filename)
-            if is_best:
-                logger.info('Best validation mIoU updated to: {:.4f}'.format(best_iou))
-                shutil.copyfile(filename, args.save_path + '/model/model_best.pth')
+                writer.add_scalar('loss_train', loss_train, epoch_log)
+                writer.add_scalar('mIoU_train', mIoU_train, epoch_log)
+                writer.add_scalar('mAcc_train', mAcc_train, epoch_log)
+                writer.add_scalar('allAcc_train', allAcc_train, epoch_log)
+    
+            is_best = False
+            if args.evaluate and (epoch_log % args.eval_freq == 0):
+                if args.data_name == 'shapenet':
+                    raise NotImplementedError()
+                else:
+                    loss_val, mIoU_val, mAcc_val, allAcc_val = validate(val_loader, model, criterion)
+    
+                if main_process():
+                    writer.add_scalar('loss_val', loss_val, epoch_log)
+                    writer.add_scalar('mIoU_val', mIoU_val, epoch_log)
+                    writer.add_scalar('mAcc_val', mAcc_val, epoch_log)
+                    writer.add_scalar('allAcc_val', allAcc_val, epoch_log)
+                    is_best = mIoU_val > best_iou
+                    best_iou = max(best_iou, mIoU_val)
+    
+            if (epoch_log % args.save_freq == 0) and main_process():
+                filename = args.save_path + '/model/model_last.pth'
+                logger.info('Saving checkpoint to: ' + filename)
+                torch.save({'epoch': epoch_log, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict(),
+                            'scheduler': scheduler.state_dict(), 'best_iou': best_iou, 'is_best': is_best}, filename)
+                if is_best:
+                    logger.info('Best validation mIoU updated to: {:.4f}'.format(best_iou))
+                    shutil.copyfile(filename, args.save_path + '/model/model_best.pth')
+    except KeyboardInterrupt:
+        filename = args.save_path + '/model/model_last.pth'
+        torch.save({'epoch': epoch_log, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(), 'best_iou': best_iou, 'is_best': is_best}, filename)
+        #import pdb; pdb.set_trace()
 
     if main_process():
         writer.close()
         logger.info('==>Training done!\nBest Iou: %.3f' % (best_iou))
 
+from torch_geometric.transforms import GridSampling
+from torch_geometric.data import Data
+from torch_geometric.nn.pool import voxel_grid
+
+custom = False
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -234,16 +248,71 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
     end = time.time()
     max_iter = args.epochs * len(train_loader)
+    
     for i, (coord, feat, target, offset) in enumerate(train_loader):  # (n, 3), (n, c), (n), (b)
-        data_time.update(time.time() - end)
-        coord, feat, target, offset = coord.cuda(non_blocking=True), feat.cuda(non_blocking=True), target.cuda(non_blocking=True), offset.cuda(non_blocking=True)
-        output = model([coord, feat, offset])
+        
+        if custom:
+            data_time.update(time.time() - end)
+            coord, feat, target, offset = coord.cuda(non_blocking=True), feat.cuda(non_blocking=True), target.cuda(non_blocking=True), offset.cuda(non_blocking=True)
+            batch = torch.zeros(coord.shape[0], dtype=torch.long)
+            for num, f in enumerate(offset[:-1]):
+                batch[f:] = num + 1
+            batch = batch.cuda(non_blocking=True)
+            output = model(feat, coord, batch)
+            """
+            
+            
+            voxels = voxel_grid(coord, batch, size=1)
+            uniques = torch.unique(voxels,return_counts=True)
+            indexes = [(voxels == idx).nonzero().flatten() for idx in uniques[0]]
+            first_valid_batch = uniques[0][(uniques[1] > 512).nonzero()[0]]
+            for k, v in enumerate(uniques[1]):
+                if v < 513:
+                    voxels[ voxels == uniques[0][k]] = first_valid_batch
+            
+            uniques = torch.unique(voxels,return_counts=True)
+            indexes = [(voxels == idx).nonzero().flatten() for idx in uniques[0]]
+            first_valid_batch = uniques[0][(uniques[1] > 512).nonzero()[0]]
+                    
+            logger.info(sum(torch.unique(voxels, return_counts=True)[1]))
+            logger.info(max(torch.unique(voxels, return_counts=True)[1]))
+            output = []
+            t = torch.cuda.get_device_properties(0).total_memory
+            r = torch.cuda.memory_reserved()
+            a = torch.cuda.memory_allocated()
+            logger.info("free : " + str(r-a) )  # free inside reserved
+            
+            for idx in indexes:
+                #import pdb; pdb.set_trace()
+                #print(idx.shape)
+                r = torch.cuda.memory_reserved()
+                a = torch.cuda.memory_allocated()
+                logger.info("free loop : " + str(r-a))  # free inside reserved
+                #import pdb; pdb.set_trace()
+                output.append(model(feat[idx].cuda(non_blocking=True), coord[idx].cuda(non_blocking=True), batch[idx].cuda(non_blocking=True)).to(torch.device('cpu')))
+            output = torch.cat(output, dim=0)
+            target = torch.cat([ target[idx] for idx in indexes], dim=0)
+            target = target.cuda(non_blocking=True)
+            output = output.cuda(non_blocking=True)
+            """
+        
+        else:
+            data_time.update(time.time() - end)
+            coord, feat, target, offset = coord.cuda(non_blocking=True), feat.cuda(non_blocking=True), target.cuda(non_blocking=True), offset.cuda(non_blocking=True)
+            output = model([coord, feat, offset])
         if target.shape[-1] == 1:
             target = target[:, 0]  # for cls
         loss = criterion(output, target)
-        optimizer.zero_grad()
+        
+        if (i+1) % 16 == 0:
+            optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        if (i+1) % 16 == 0:
+            optimizer.step()
+        else:
+            continue
+            
+            
 
         output = output.max(1)[1]
         n = coord.size(0)
@@ -316,8 +385,17 @@ def validate(val_loader, model, criterion):
         coord, feat, target, offset = coord.cuda(non_blocking=True), feat.cuda(non_blocking=True), target.cuda(non_blocking=True), offset.cuda(non_blocking=True)
         if target.shape[-1] == 1:
             target = target[:, 0]  # for cls
-        with torch.no_grad():
-            output = model([coord, feat, offset])
+        
+        if custom:
+            batch = torch.zeros(coord.shape[0], dtype=torch.long)
+            for num, f in enumerate(offset[:-1]):
+                batch[f:] = num + 1
+            batch = batch.cuda(non_blocking=True)
+            with torch.no_grad():
+                output = model(feat, coord, batch)
+        else:
+            with torch.no_grad():
+                output = model([coord, feat, offset])
         loss = criterion(output, target)
 
         output = output.max(1)[1]

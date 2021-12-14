@@ -2,7 +2,9 @@
 
 export PYTHONPATH=./
 eval "$(conda shell.bash hook)"
+eval "conda activate pt"
 PYTHON=python
+
 
 TRAIN_CODE=train.py
 TEST_CODE=test.py
@@ -21,6 +23,12 @@ cp tool/train.sh tool/${TRAIN_CODE} ${config} tool/test.sh tool/${TEST_CODE} ${e
 
 
 now=$(date +"%Y%m%d_%H%M%S")
+echo "$($PYTHON -c "import sys; print(sys.version)")"
+echo $PYTHON ${exp_dir}/${TRAIN_CODE} \
+  --config=${config} \
+  save_path ${exp_dir} \
+  2>&1 | tee ${exp_dir}/train-$now.log
+  
 $PYTHON ${exp_dir}/${TRAIN_CODE} \
   --config=${config} \
   save_path ${exp_dir} \

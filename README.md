@@ -71,4 +71,3 @@ If you use this code, please cite [Point Transformer](https://arxiv.org/abs/2012
 
 ## Acknowledgement
 The code is from the first author of [Point Transformer](https://arxiv.org/abs/2012.09164).
-We also refer [PAConv repository](https://github.com/CVMI-Lab/PAConv).
