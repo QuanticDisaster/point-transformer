@@ -18,14 +18,17 @@ import torch.optim.lr_scheduler as lr_scheduler
 from tensorboardX import SummaryWriter
 
 from util import config
-from util.s3dis import S3DIS
+#from util.s3dis import S3DIS
+from util.custom_s3dis import S3DIS
 from util.common_util import AverageMeter, intersectionAndUnionGPU, find_free_port
-from util.data_util import collate_fn
+#from util.data_util import collate_fn
+from util.custom_data_util import collate_fn
 from util import transform as t
 
 
 import sys
 sys.path.append('/home/tidop/anaconda3/envs/pt/lib/python3.7/site-packages/pointops-0.0.0-py3.7-linux-x86_64.egg')
+sys.path.append(r'/home/tidop/Documents/pt_transfo_adapted/point-transformer/model')
 
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch Point Cloud Semantic Segmentation')
@@ -108,6 +111,7 @@ def main_worker(gpu, ngpus_per_node, argss):
     else:
         raise Exception('architecture not supported yet'.format(args.arch))
     model = Model(c=args.fea_dim, k=args.classes)
+    
     if args.sync_bn:
        model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     criterion = nn.CrossEntropyLoss(ignore_index=args.ignore_label).cuda()
@@ -142,7 +146,14 @@ def main_worker(gpu, ngpus_per_node, argss):
             if main_process():
                 logger.info("=> loading weight '{}'".format(args.weight))
             checkpoint = torch.load(args.weight)
-            model.load_state_dict(checkpoint['state_dict'])
+            
+            #for k in list(checkpoint['state_dict'].keys()):
+            #    if 'transformer2.linear_w.5' in k:
+            #        del checkpoint['state_dict'][k]
+            model.load_state_dict(checkpoint['state_dict'])#, strict=False)
+            
+            
+                    
             if main_process():
                 logger.info("=> loaded weight '{}'".format(args.weight))
         else:
@@ -166,14 +177,19 @@ def main_worker(gpu, ngpus_per_node, argss):
                 logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     train_transform = t.Compose([t.RandomScale([0.9, 1.1]), t.ChromaticAutoContrast(), t.ChromaticTranslation(), t.ChromaticJitter(), t.HueSaturationTranslation()])
-    train_data = S3DIS(split='train', data_root=args.data_root, test_area=args.test_area, voxel_size=args.voxel_size, voxel_max=args.voxel_max, transform=train_transform, shuffle_index=True, loop=args.loop) #TODO : put back shuffle to True
+    train_data = S3DIS(split='train', data_root=args.data_root, test_area=args.test_area, voxel_size=args.voxel_size, voxel_max=args.voxel_max, transform=train_transform, shuffle_index=False, loop=args.loop) #TODO : put back shuffle to True
+
     if main_process():
             logger.info("train_data samples: '{}'".format(len(train_data)))
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_data)
     else:
         train_sampler = None
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=(train_sampler is None), num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=True, collate_fn=collate_fn)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=(train_sampler is None), num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=False, collate_fn=collate_fn) #TODO : put back drop last to False
+    
+    #logger.info("bloup bloup :" + str(train_loader.__len__()))
+    #for i,data in enumerate(train_loader):
+    #    torch.save(data, r'/home/tidop/Downloads/nubes de puntos/PT_S3DIS_pt_files/train/data' + str(i) + '.pt')
 
     val_loader = None
     if args.evaluate:
@@ -184,7 +200,8 @@ def main_worker(gpu, ngpus_per_node, argss):
         else:
             val_sampler = None
         val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size_val, shuffle=False, num_workers=args.workers, pin_memory=True, sampler=val_sampler, collate_fn=collate_fn)
-
+        #for i,data in enumerate(val_loader):
+        #    torch.save(data, r'/home/tidop/Downloads/nubes de puntos/PT_S3DIS_pt_files/val/data' + str(i) + '.pt')
     try:
         for epoch in range(args.start_epoch, args.epochs):
             if args.distributed:
@@ -248,9 +265,12 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
     end = time.time()
     max_iter = args.epochs * len(train_loader)
-    
+    optimizer.zero_grad()
     for i, (coord, feat, target, offset) in enumerate(train_loader):  # (n, 3), (n, c), (n), (b)
-        
+        if i % 200 != 0:
+            continue
+            
+        logger.info(i)
         if custom:
             data_time.update(time.time() - end)
             coord, feat, target, offset = coord.cuda(non_blocking=True), feat.cuda(non_blocking=True), target.cuda(non_blocking=True), offset.cuda(non_blocking=True)
@@ -302,15 +322,18 @@ def train(train_loader, model, criterion, optimizer, epoch):
             output = model([coord, feat, offset])
         if target.shape[-1] == 1:
             target = target[:, 0]  # for cls
+        
+        
         loss = criterion(output, target)
         
-        if (i+1) % 16 == 0:
-            optimizer.zero_grad()
-        loss.backward()
-        if (i+1) % 16 == 0:
-            optimizer.step()
-        else:
-            continue
+        #if (i+1) % 16 == 0:
+        optimizer.zero_grad()
+        #loss.backward()
+        #if (i+1) % 16 == 0:
+        optimizer.step()
+            
+        #if (i+1) % 16 != 0:
+        #    continue
             
             
 

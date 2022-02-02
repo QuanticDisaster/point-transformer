@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 from util.data_util import sa_create
 from util.data_util import data_prepare
-
+import torch
 
 class S3DIS(Dataset):
     def __init__(self, split='train', data_root='trainval', test_area=5, voxel_size=0.04, voxel_max=None, transform=None, shuffle_index=False, loop=1):
@@ -30,7 +30,8 @@ class S3DIS(Dataset):
         data_idx = self.data_idx[idx % len(self.data_idx)]
         data = SA.attach("shm://{}".format(self.data_list[data_idx])).copy()
         coord, feat, label = data[:, 0:3], data[:, 3:6], data[:, 6]
-        coord, feat, label = data_prepare(coord, feat, label, self.split, self.voxel_size, self.voxel_max, self.transform, self.shuffle_index)
+        #coord, feat, label = data_prepare(coord, feat, label, self.split, self.voxel_size, self.voxel_max, self.transform, self.shuffle_index)
+        coord, feat, label = data_prepare(coord, feat, label, self.split, self.voxel_size, None, None, None)
         return coord, feat, label
 
     def __len__(self):

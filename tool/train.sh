@@ -33,3 +33,19 @@ $PYTHON ${exp_dir}/${TRAIN_CODE} \
   --config=${config} \
   save_path ${exp_dir} \
   2>&1 | tee ${exp_dir}/train-$now.log
+
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train /home/tidop/Downloads/olloki_TF/olloki_substation_trainV22_5cm_sub.txt --test /home/tidop/Downloads/olloki_TF/traintest_features_5cm_sub.txt --features 10,11,16  --labels 6 --output /home/tidop/Downloads/olloki_TF/output1 --epoch 60
+
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train /home/tidop/Downloads/InRoad_TF/train_inroadV4.txt --test /home/tidop/Downloads/InRoad_TF/test_inroadV4.txt --features 11 --labels 12 --output /home/tidop/Downloads/InRoad_TF/output1 --epoch 60
+#10,11,16
+
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train /home/tidop/Downloads/railway_TF/railway_trainV2.txt --test /home/tidop/Downloads/railway_TF/railway_testV2.txt  --labels 21 --output /home/tidop/Downloads/railway_TF/output1 --epoch 60
+
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training_supercomputation_S3DIS_pt_repo.py --train None --test None  --labels 21 --output /home/tidop/Downloads/s3dis_TF/output1 --epoch 60
+
+#version DDP
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train /home/tidop/Downloads/olloki_TF/olloki_substation_trainV22_5cm_sub.txt --test /home/tidop/Downloads/olloki_TF/traintest_features_5cm_sub.txt --features 10,11,16  --labels 6 --output /home/tidop/Downloads/olloki_TF/output1 --epoch 6
+
+#version avec cloud classifier DL
+#CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train "/home/tidop/Downloads/nubes de puntos/PT_S3DIS_pt_files/train" --test "/home/tidop/Downloads/nubes de puntos/PT_S3DIS_pt_files/val" --features 10,11,16  --labels 6 --output /home/tidop/Downloads/olloki_TF/output1 --epoch 60
+
