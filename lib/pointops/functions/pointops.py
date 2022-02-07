@@ -86,7 +86,10 @@ def queryandgroup(nsample, xyz, new_xyz, feat, idx, offset, new_offset, use_xyz=
         new_xyz = xyz
     if idx is None:
         idx, _ = knnquery(nsample, xyz, new_xyz, offset, new_offset) # (m, nsample)
-
+        #from torch_geometric.nn import knn_graph
+        #idx = knn_graph(xyz, nsample, loop=True)[0].view(-1, nsample)
+        #import pdb; pdb.set_trace()
+        
     n, m, c = xyz.shape[0], new_xyz.shape[0], feat.shape[1]
     grouped_xyz = xyz[idx.view(-1).long(), :].view(m, nsample, 3) # (m, nsample, 3)
     #grouped_xyz = grouping(xyz, idx) # (m, nsample, 3)

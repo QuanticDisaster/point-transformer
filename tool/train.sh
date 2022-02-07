@@ -31,8 +31,8 @@ echo $PYTHON ${exp_dir}/${TRAIN_CODE} \
   
 $PYTHON ${exp_dir}/${TRAIN_CODE} \
   --config=${config} \
-  save_path ${exp_dir} \
-  2>&1 | tee ${exp_dir}/train-$now.log
+  save_path ${exp_dir} #\
+  #2>&1 | tee ${exp_dir}/train-$now.log
 
 #CUDA_LAUNCH_BLOCKING=1 $PYTHON /home/tidop/Documents/git/CloudClassifier-DL/training.py --train /home/tidop/Downloads/olloki_TF/olloki_substation_trainV22_5cm_sub.txt --test /home/tidop/Downloads/olloki_TF/traintest_features_5cm_sub.txt --features 10,11,16  --labels 6 --output /home/tidop/Downloads/olloki_TF/output1 --epoch 60
 

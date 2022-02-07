@@ -18,11 +18,11 @@ import torch.optim.lr_scheduler as lr_scheduler
 from tensorboardX import SummaryWriter
 
 from util import config
-#from util.s3dis import S3DIS
-from util.custom_s3dis import S3DIS
+from util.s3dis import S3DIS
+#from util.custom_s3dis import S3DIS
 from util.common_util import AverageMeter, intersectionAndUnionGPU, find_free_port
-#from util.data_util import collate_fn
-from util.custom_data_util import collate_fn
+from util.data_util import collate_fn
+#from util.custom_data_util import collate_fn
 from util import transform as t
 
 
@@ -150,6 +150,7 @@ def main_worker(gpu, ngpus_per_node, argss):
             #for k in list(checkpoint['state_dict'].keys()):
             #    if 'transformer2.linear_w.5' in k:
             #        del checkpoint['state_dict'][k]
+            import pdb; pdb.set_trace()
             model.load_state_dict(checkpoint['state_dict'])#, strict=False)
             
             
@@ -252,7 +253,7 @@ from torch_geometric.transforms import GridSampling
 from torch_geometric.data import Data
 from torch_geometric.nn.pool import voxel_grid
 
-custom = False
+custom = True
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
